@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools >= 64.0", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyringdown"
+dependencies = [
+  "httpx",
+  "gidgethub[httpx]>4.0.0",
+  "django>2.1; os_name != 'nt'",
+  "django>2.0; os_name == 'nt'",
+]
+requires-python = ">=3.8"
+authors = [
+  {name = "Christian Chapman-Bird", email = "c.chapmanbird@gmail.com"},]
+description = "pyringdown: A pendulum ringdown analysis toolkit"
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["ringdown", "pendulum", "gravimetry"]
+classifiers = [
+  "Programming Language :: Python :: 3"
+]
+dynamic = ["version"]
+dependencies = [
+    "numpy",
+    "nessai",
+    "matplotlib",
+    "h5py"
+]
+
+[tool.setuptools_scm]
+
