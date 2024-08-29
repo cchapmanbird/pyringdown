@@ -55,9 +55,8 @@ class TimeDomainModel(Model):
             log_p -= np.log(self.bounds[n][1] - self.bounds[n][0])
         return log_p
 
-    def waveform(self, x):
-        wave = small_angle_approx(self.t_eval, x['A'], x['b'], x['fN'], x['phi0'], x['offset'])
-        return wave
+    def waveform(self, *args):
+        return small_angle_approx(self.t_eval, *args)
     
     def log_likelihood(self, x):
         wave = small_angle_approx(self.t_eval, x['A'], x['b'], x['fN'], x['phi0'], x['offset'])
