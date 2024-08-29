@@ -6,7 +6,7 @@ Fit either small-angle approximation or numerical models of pendulum motion to r
 Heavy WIP!
 
 ## Installation
-To install with `pip`,
+To install with `pip`, clone the repo and run
 ```console
 python -m pip install .
 ```
