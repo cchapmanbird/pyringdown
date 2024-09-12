@@ -48,7 +48,7 @@ class TimeDomainModel(Model):
         self.t_eval = np.arange(self.nt)/self.fs
 
     def get_all_parameter_names(self):
-        return ["fN", "b", "A", "phi0", "offset", "m_drift", "sigma", "sigma_A"]
+        return ["fN", "b", "A", "phi0", "offset", "sigma", "sigma_A"]
 
     def log_prior(self, x):
         # TODO user defined priors from dict
@@ -61,7 +61,7 @@ class TimeDomainModel(Model):
         return small_angle_approx_td(self.t_eval, *args)
     
     def log_likelihood(self, x):
-        wave = small_angle_approx_td(self.t_eval, x['A'], x['b'], x['fN'], x['phi0'], x['offset'], x['m_drift'])
+        wave = small_angle_approx_td(self.t_eval, x['A'], x['b'], x['fN'], x['phi0'], x['offset'], m_drift=None)
 
         if 'sigma_A' in self.names:
             sigma2 = ((wave*x['sigma_A'][:,None])**2 + x['sigma'][:,None]**2)

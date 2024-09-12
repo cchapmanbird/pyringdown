@@ -1,6 +1,4 @@
 from nessai.utils.logging import setup_logger
-from multiprocessing import Pool
-from nessai.utils.multiprocessing import initialise_pool_variables
 from nessai.flowsampler import FlowSampler
 from nessai.plot import corner_plot
 import os
@@ -34,11 +32,17 @@ def run_on_data(data, model, bounds, outdir, ncores=1, model_kwargs=None, logger
     inference_model = model(bounds, data, **model_kwargs)
     setup_logger(outdir, **logger_kwargs)
 
-    pool = Pool(
-        processes=ncores,
-        initializer=initialise_pool_variables,
-        initargs=(inference_model,),
-    )
+    if ncores != 1:
+        from multiprocessing import Pool
+        from nessai.utils.multiprocessing import initialise_pool_variables
+
+        pool = Pool(
+            processes=ncores,
+            initializer=initialise_pool_variables,
+            initargs=(inference_model,),
+        )
+    else:
+        pool = None
 
     point = inference_model.new_point()
     lh = inference_model.log_likelihood(point)
