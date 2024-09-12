@@ -3,7 +3,7 @@ import h5py
 import numpy as np
 import os
 
-def parameter_group_plot(filenames, parameter, mapping_function=None, outname=None, xvalues=None, xlabel=None, parent_dir=None):
+def parameter_group_plot(filenames, parameter, mapping_function=None, outname=None, xvalues=None, xlabel=None, ylabel=None, parent_dir=None):
     if xvalues is None:
         xvalues = np.arange(len(filenames))
     if parent_dir is None:
@@ -25,7 +25,11 @@ def parameter_group_plot(filenames, parameter, mapping_function=None, outname=No
     fig, ax = plt.subplots()
     ax.plot(xvalues, to_plot)
     ax.set_xlabel(xlabel)
-    ax.set_ylabel(parameter)
+    
+    if ylabel is None:
+        ax.set_ylabel(parameter)
+    else:
+        ax.set_ylabel(ylabel)
 
     if outname is None:
         return fig, ax
