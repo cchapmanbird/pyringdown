@@ -96,4 +96,6 @@ def run_on_data(data, model, bounds, outdir, ncores=1, model_kwargs=None, logger
     plt.plot(plotvec, norm.pdf(plotvec))
     plt.savefig(os.path.join(outdir,"fit_residuals_hist.pdf"))
     plt.close()
-    pool.close()
+
+    if pool is not None:
+        pool.close()
