@@ -1,11 +1,13 @@
 from nessai.model import Model
 import numpy as np
 from pyringdown.waveform.small_angle import small_angle_approx_td, small_angle_approx_fd
+from pyringdown.utility import ensure_arrays
 import numba
 from functools import partial
 import math
 from scipy.signal.windows import get_window
 from scipy.ndimage import convolve1d
+from scipy.optimize import differential_evolution
 
 @partial(numba.jit, fastmath=True)
 def _loglike_td_kernel(output, nlike, nt, data, waveforms, sigma2):
@@ -86,6 +88,24 @@ def _loglike_fd_kernel(output, nlike, nf, data, waveforms, sigma2, df):
         output[i] = like_here
 
     return output
+
+def maximum_likelihood_optimisation(model, optim_kwargs=None, return_result_object=False):
+    if optim_kwargs is None:
+        optim_kwargs = {}
+    
+    def loglike_wrapper(x):
+        names = model.names
+        inps = {nm: ensure_arrays(x[i])[0] for i, nm in enumerate(names)}
+        return -model.log_likelihood(inps)
+
+    input_bounds = list(model.bounds.values())
+
+    result = differential_evolution(loglike_wrapper, input_bounds, vectorized=True, updating="deferred", **optim_kwargs)
+
+    if return_result_object:
+        return result
+    else:
+        return result.x
 
 class FrequencyDomainModel(Model):
     def __init__(self, bounds, data, frequency_band=None, window=None, fs=None):
