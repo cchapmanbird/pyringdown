@@ -8,7 +8,7 @@ from scipy.stats import norm
 import time
 
 
-def run_on_data(data, model, bounds, outdir, ncores=1, model_kwargs=None, logger_kwargs=None, plot_posterior=True, **sampler_kwargs):
+def run_on_data(data, model, bounds, outdir, ncores=1, model_kwargs=None, logger_kwargs=None, plot_posterior=True, plot=True, **sampler_kwargs):
 
     _sampler_kwarg_defaults = {
         "nlive": 1000,
@@ -54,48 +54,49 @@ def run_on_data(data, model, bounds, outdir, ncores=1, model_kwargs=None, logger
 
     fs.run(plot_posterior=plot_posterior)
 
-    corner_plot(
-        fs.posterior_samples,
-        exclude=["logL","logP","it"],
-        filename=os.path.join(outdir,"corner_plot.pdf")
-    )
-    plt.close()
+    if plot:
+        corner_plot(
+            fs.posterior_samples,
+            exclude=["logL","logP","it"],
+            filename=os.path.join(outdir,"corner_plot.pdf")
+        )
+        plt.close()
 
-    best_point = np.atleast_1d(fs.posterior_samples[-1])
-    # waveform = np.squeeze(inference_model.waveform(best_point['A'], best_point['b'], best_point['fN'], best_point['phi0'], best_point['offset'], best_point['m_drift']))
-    names_no_sigma = []
-    for nm in inference_model.names:
-        if "sigma" not in nm:
-            names_no_sigma.append(nm)
-    waveform = np.squeeze(inference_model.waveform(*[best_point[nm].item() for nm in names_no_sigma]))
+        best_point = np.atleast_1d(fs.posterior_samples[-1])
+        # waveform = np.squeeze(inference_model.waveform(best_point['A'], best_point['b'], best_point['fN'], best_point['phi0'], best_point['offset'], best_point['m_drift']))
+        names_no_sigma = []
+        for nm in inference_model.names:
+            if "sigma" not in nm:
+                names_no_sigma.append(nm)
+        waveform = np.squeeze(inference_model.waveform(*[best_point[nm].item() for nm in names_no_sigma]))
 
-    plt.figure(figsize=(15, 8))
-    plt.plot(inference_model.t_eval, inference_model.data, c='k', label="Data")
-    plt.plot(inference_model.t_eval, waveform, ls='--', c='r', label="Fit ringdown")
-    plt.legend()
-    plt.xlim(0, 15)
-    plt.savefig(os.path.join(outdir,"fit_ringdown.pdf"))
-    plt.close()
+        plt.figure(figsize=(15, 8))
+        plt.plot(inference_model.t_eval, inference_model.data, c='k', label="Data")
+        plt.plot(inference_model.t_eval, waveform, ls='--', c='r', label="Fit ringdown")
+        plt.legend()
+        plt.xlim(0, 15)
+        plt.savefig(os.path.join(outdir,"fit_ringdown.pdf"))
+        plt.close()
 
-    try:
-        var = (waveform * best_point["sigma_A"])**2 + best_point["sigma"]**2
-        residuals = (inference_model.data - waveform) / var**0.5
-    except ValueError:
-        var = best_point["sigma"]**2
-        residuals = (inference_model.data - waveform) / var**0.5
+        try:
+            var = (waveform * best_point["sigma_A"])**2 + best_point["sigma"]**2
+            residuals = (inference_model.data - waveform) / var**0.5
+        except ValueError:
+            var = best_point["sigma"]**2
+            residuals = (inference_model.data - waveform) / var**0.5
 
-    plt.figure(figsize=(15, 8))
-    plt.scatter(inference_model.t_eval, residuals, s=0.5, c='k',rasterized=True)
-    # plt.legend()
-    # plt.xlim(0, 15)
-    plt.savefig(os.path.join(outdir,"fit_ringdown_residual.pdf"))
-    plt.close()
+        plt.figure(figsize=(15, 8))
+        plt.scatter(inference_model.t_eval, residuals, s=0.5, c='k',rasterized=True)
+        # plt.legend()
+        # plt.xlim(0, 15)
+        plt.savefig(os.path.join(outdir,"fit_ringdown_residual.pdf"))
+        plt.close()
 
-    plt.hist(residuals, bins='auto',density=True)
-    plotvec = np.linspace(-4, 4, 1001)
-    plt.plot(plotvec, norm.pdf(plotvec))
-    plt.savefig(os.path.join(outdir,"fit_residuals_hist.pdf"))
-    plt.close()
+        plt.hist(residuals, bins='auto',density=True)
+        plotvec = np.linspace(-4, 4, 1001)
+        plt.plot(plotvec, norm.pdf(plotvec))
+        plt.savefig(os.path.join(outdir,"fit_residuals_hist.pdf"))
+        plt.close()
 
     if pool is not None:
         pool.close()
