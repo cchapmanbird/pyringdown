@@ -8,7 +8,10 @@ import math
 from scipy.signal.windows import get_window
 from scipy.ndimage import convolve1d
 from scipy.optimize import differential_evolution
+from scipy.optimize import OptimizeResult
 from tqdm import tqdm
+from typing import Optional, Union, Self
+from pathlib import Path
 
 @partial(numba.jit, fastmath=True)
 def _loglike_td_kernel(output, nlike, nt, data, waveforms, sigma2):
@@ -24,7 +27,22 @@ def _loglike_td_kernel(output, nlike, nt, data, waveforms, sigma2):
     return output
 
 class TimeDomainModel(Model):
-    def __init__(self, bounds, data, fs=None, downsample=False):
+    """
+    A `nessai` model class for performing time domain analysis using the small angle approximation waveform.
+
+    Args:
+        bounds: A dictionary of parameter-(min, max) pairs to define the prior bounds on each parameter.
+        data: A 1-d array of time domain data to analyse. 
+        fs: Sampling frequency of the time-domain data. If not supplied, it is assumed that the first index of `data` is the sampling frequency and the second index of `data` is zero.
+        downsample: Keep every `downsample`'th sample of `data`. Defaults to 1 (i.e. keep every data point).
+    """
+    def __init__(
+            self: Self, 
+            bounds: dict, 
+            data: np.ndarray, 
+            fs: Optional[float]=None, 
+            downsample: int=1
+        ):
         all_params = self.get_all_parameter_names()
         self.names = list(bounds.keys())
         for nm in self.names:
@@ -54,7 +72,6 @@ class TimeDomainModel(Model):
         return ["fN", "b", "A", "phi0", "offset", "sigma", "sigma_A"]
 
     def log_prior(self, x):
-        # TODO user defined priors from dict
         log_p = np.log(self.in_bounds(x), dtype="float")
         for n in self.names:
             log_p -= np.log(self.bounds[n][1] - self.bounds[n][0])
@@ -90,8 +107,19 @@ def _loglike_fd_kernel(output, nlike, nf, data, waveforms, sigma2, df):
 
     return output
 
-def maximum_likelihood_optimisation(model, optim_kwargs=None, return_result_object=False):
-    
+def maximum_likelihood_optimisation(
+        model: TimeDomainModel, 
+        optim_kwargs: Optional[dict]=None, 
+        return_result_object:bool=False
+    ) -> Union[np.ndarray, OptimizeResult]:
+    """
+    A wrapper around the `scipy` `differential_evolution` routine for performing maximum likelihood fits (less expensive than full PE).
+
+    Args:
+        model: The initialised `TimeDomainModel` object.
+        optim_kwargs: Additional keyword arguments to pass to the `differential_evolution` method.
+        return_result_object: If True, returns the `scipy` result object. If False, returns only `result.x` (i.e. the fitted parameters). Defaults to False. 
+    """
     _optim_kwarg_defaults = dict(
         updating="deferred",
         vectorized=True,
@@ -117,7 +145,29 @@ def maximum_likelihood_optimisation(model, optim_kwargs=None, return_result_obje
     else:
         return result.x
 
-def maximum_likelihood_segmented_analysis(data, bounds, stride, segwidth, downsample=1., outname=None, progress=True):
+def maximum_likelihood_segmented_analysis(
+        data:np.ndarray, 
+        bounds:dict, 
+        stride:float, 
+        segwidth:float, 
+        downsample:int=1, 
+        outname:Optional[Union[str,Path]]=None, 
+        progress:bool=True,
+        optim_kwargs:Optional[dict]=None,
+    ) -> np.ndarray:
+    """
+    Performs maximum likelihood fits to data in a sliding window fashion.
+
+    Args:
+        data: A 1-d array of time domain data to analyse. 
+        bounds: A dictionary of parameter-(min, max) pairs to define the prior bounds on each parameter.
+        stride: Time between each window start point in seconds.
+        segwidth: Duration of each window in seconds.
+        downsample: Keep every `downsample`'th sample of `data`. Defaults to 1 (i.e. keep every data point). Applied after the window has been defined to retain resolution when sliding.
+        outname: If supplied, saves the results of the segmented analysis to this file path.
+        progress: If True, displays a progress bar via `tqdm`. Defaults to True.
+        optim_kwargs: Additional keyword arguments to pass to the `differential_evolution` method.
+    """
     fs = data[0]
     data = data[2:]
 
@@ -140,7 +190,7 @@ def maximum_likelihood_segmented_analysis(data, bounds, stride, segwidth, downsa
         data_here = data[start_ind:start_ind+segment_width]
         model = TimeDomainModel(bounds, data_here, fs=fs, downsample=downsample)
 
-        result = maximum_likelihood_optimisation(model)
+        result = maximum_likelihood_optimisation(model, optim_kwargs=optim_kwargs)
         results.append(result)
     
     results = np.array(results)

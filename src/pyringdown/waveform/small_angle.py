@@ -72,7 +72,8 @@ def small_angle_approx_td(
         phi0: Union[float, np.ndarray], 
         offset: Optional[Union[float, np.ndarray]]=None, 
         m_drift: Optional[Union[float, np.ndarray]]=None, 
-        dtype: np.dtype=np.float64):
+        dtype: np.dtype=np.float64
+    ) -> np.ndarray:
     """
     Small-angle approximation for theta(t), including damping via a linear friction term.
     Returns in the time domain.
@@ -115,7 +116,8 @@ def small_angle_approx_fd(
         b: Union[float, np.ndarray], 
         fN: Union[float, np.ndarray], 
         phi0: Union[float, np.ndarray], 
-        dtype: np.dtype=np.complex128):
+        dtype: np.dtype=np.complex128
+    ) -> np.ndarray:
     """
     Small-angle approximation for theta(t), including damping via a linear friction term.
     Returns in the frequency domain.
