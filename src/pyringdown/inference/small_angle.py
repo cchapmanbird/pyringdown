@@ -8,6 +8,7 @@ import math
 from scipy.signal.windows import get_window
 from scipy.ndimage import convolve1d
 from scipy.optimize import differential_evolution
+from tqdm import tqdm
 
 @partial(numba.jit, fastmath=True)
 def _loglike_td_kernel(output, nlike, nt, data, waveforms, sigma2):
@@ -90,8 +91,17 @@ def _loglike_fd_kernel(output, nlike, nf, data, waveforms, sigma2, df):
     return output
 
 def maximum_likelihood_optimisation(model, optim_kwargs=None, return_result_object=False):
-    if optim_kwargs is None:
-        optim_kwargs = {}
+    
+    _optim_kwarg_defaults = dict(
+        updating="deferred",
+        vectorized=True,
+        mutation=(0.7,1.8),
+        maxiter=10_000,
+        popsize=40,
+    )
+
+    if optim_kwargs is not None:
+        _optim_kwarg_defaults.update(optim_kwargs)
     
     def loglike_wrapper(x):
         names = model.names
@@ -100,12 +110,45 @@ def maximum_likelihood_optimisation(model, optim_kwargs=None, return_result_obje
 
     input_bounds = list(model.bounds.values())
 
-    result = differential_evolution(loglike_wrapper, input_bounds, vectorized=True, updating="deferred", **optim_kwargs)
+    result = differential_evolution(loglike_wrapper, input_bounds, **_optim_kwarg_defaults)
 
     if return_result_object:
         return result
     else:
         return result.x
+
+def maximum_likelihood_segmented_analysis(data, bounds, stride, segwidth, downsample=1., outname=None, progress=True):
+    fs = data[0]
+    data = data[2:]
+
+    nt = data.size
+    duration = nt/fs
+
+    nsegments = int(((duration - segwidth))/stride)
+    segment_width = int(segwidth * fs)
+    stride_width = int(stride*fs)
+    segment_start_inds = np.arange(nsegments)*stride_width
+
+    if progress:
+        iter = tqdm((segment_start_inds))
+    else:
+        iter = segment_start_inds
+
+    results = []
+
+    for start_ind in iter:
+        data_here = data[start_ind:start_ind+segment_width]
+        model = TimeDomainModel(bounds, data_here, fs=fs, downsample=downsample)
+
+        result = maximum_likelihood_optimisation(model)
+        results.append(result)
+    
+    results = np.array(results)
+
+    if outname is not None:
+        np.savetxt(outname, results)
+
+    return results
 
 class FrequencyDomainModel(Model):
     def __init__(self, bounds, data, frequency_band=None, window=None, fs=None):
