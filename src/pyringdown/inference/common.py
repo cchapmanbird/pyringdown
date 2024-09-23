@@ -1,15 +1,42 @@
 from nessai.utils.logging import setup_logger
 from nessai.flowsampler import FlowSampler
 from nessai.plot import corner_plot
+from pyringdown.inference.small_angle import TimeDomainModel
 import os
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import norm
 import time
+from typing import Union, Optional
+from pathlib import Path
 
+def run_on_data(
+        data: np.ndarray, 
+        model: TimeDomainModel, 
+        bounds: dict, 
+        outdir: Union[str, Path], 
+        ncores: int=1, 
+        model_kwargs: Optional[dict]=None, 
+        logger_kwargs: Optional[dict]=None, 
+        plot_posterior: bool=True, 
+        plot: bool=True, 
+        **sampler_kwargs
+    ):
+    """
+    A convenience function for running a time domain analysis.
 
-def run_on_data(data, model, bounds, outdir, ncores=1, model_kwargs=None, logger_kwargs=None, plot_posterior=True, plot=True, **sampler_kwargs):
-
+    Args:
+        data: A 1-d array of time domain data to analyse. 
+        model: An uninitialised model class to run the analysis with (currently only supports pyringdown.inference.small_angle.TimeDomainModel).
+        bounds: A dictionary of parameter-(min, max) pairs to define the prior bounds on each parameter.
+        outdir: A path to a directory in which to place the analysis results and diagnostic plots (will be created if it does not exist).
+        ncores: Number of cores to use for multiprocessing. If equal to 1, no pool is initialised.
+        model_kwargs: Keyword arguments to supply to `model`.
+        logger_kwargs: Keyword argmuents to supply to the `nessai` logger.
+        plot_posterior: A boolean to determine whether `nessai` produces a scatter corner plot of the posterior samples. Defaults to True.
+        plot: A boolean to determine whether pyringdown will produce some final diagnostic plots of the fit residuals. Defaults to True.
+        **sampler_kwargs: Keyword arguments to pass to the `nessai` `FlowSampler` class.
+    """
     _sampler_kwarg_defaults = {
         "nlive": 1000,
         "seed": 42,
