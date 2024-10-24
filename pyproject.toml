@@ -22,6 +22,7 @@ dependencies = [
     "h5py",
     "numba",
     "scipy",
+    "corner"
 ]
 
 [tool.setuptools_scm]

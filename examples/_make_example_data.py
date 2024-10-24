@@ -1,4 +1,4 @@
-from pyringdown.waveform.small_angle import small_angle_approx
+from pyringdown.waveform.small_angle import small_angle_approx_td
 import numpy as np
 
 A = 7.
@@ -13,7 +13,7 @@ duration = 60
 nt = int(duration * fs)
 t = np.arange(nt) / fs
 
-wave = np.squeeze(small_angle_approx(t, A, b, fN, phi0, offset=offset))
+wave = np.squeeze(small_angle_approx_td(t, A, b, fN, phi0, offset=offset))
 
 #add noise
 wave += np.random.normal(scale=sigma, size=nt)
