@@ -16,7 +16,7 @@ from typing import Union, Optional
 #             theta1 = theta0[i] * math.exp(-beta * time[j]) * math.cos(omega_star * time[j] + phi0[i]) / 2.
 #             output[i, j] = A[i] * math.sin(theta1) + m_drift[i]*time[j] + offset[i]
 
-@partial(numba.jit, fastmath=True)
+@numba.jit
 def _sa_td_kernel(output, nwave, nt, time, A, b, fN, phi0, offset, m_drift):
     for i in numba.prange(nwave):
         beta = b[i]/2
@@ -24,6 +24,19 @@ def _sa_td_kernel(output, nwave, nt, time, A, b, fN, phi0, offset, m_drift):
         omega_star = math.sqrt(omega*omega - beta*beta)
         for j in numba.prange(nt):
             output[i, j] = A[i] * math.exp(-beta * time[j]) * math.cos(omega_star * time[j] + phi0[i]) + m_drift[i]*time[j] + offset[i]
+
+# @numba.jit
+# def _sa_td_kernel(output, nwave, nt, time, A, b, fN, phi0, offset, m_drift, higher_corrections):
+#     for i in numba.prange(nwave):
+#         beta = b[i]/2
+#         omega = 2 * math.pi * fN[i]
+#         Amp_in = A[i] * 3.075e-3
+#         omega_star = omega * (1 - Amp_in**2/16)
+#         for j in numba.prange(nt):
+#             if higher_corrections:
+#                 output[i, j] = Amp_in * math.exp(-beta * time[j]) * math.cos(omega_star * time[j] + phi0[i]) - Amp_in**3 / 192 * math.exp(-3 * beta * time[j]) * math.cos(3 * omega_star * time[j] + phi0[i]) + m_drift[i]*time[j] + offset[i]
+#             else:
+#                 output[i, j] = Amp_in * math.exp(-beta * time[j]) * math.cos(omega_star * time[j] + phi0[i]) + m_drift[i]*time[j] + offset[i]
 
 
 # @partial(numba.jit, fastmath=True)
@@ -100,29 +113,31 @@ def small_angle_approx_td(
     _sa_td_kernel(output, nwave, nt, t, A, b, fN, phi0, offset, m_drift)
     return output
 
-@partial(numba.jit, fastmath=True)
-def _sa_fd_kernel(output, nwave, nf, freqs, A, b, fN, phi0):
+@numba.jit
+def _sa_fd_kernel(output, nwave, nf, T, freqs, A, b, fN, phi0):
     for i in numba.prange(nwave):
-        beta = b[i]/2
-        eiphi = cmath.exp(1j*phi0[i])
-        omega = 2 * math.pi * fN[i]
-        omega_star = math.sqrt(omega*omega - beta*beta)
+        prefac = A[i] / 2 * cmath.exp(1j*phi0[i])
+        fNh = fN[i]
+        bh = b[i]
         for j in numba.prange(nf):
-            output[i, j] = A[i] / 2 * (eiphi / (beta + 1j*(2*math.pi*freqs[j]-omega_star)) +  eiphi.conjugate() / (beta + 1j*(2*math.pi*freqs[j]+omega_star)))
+            prefac1 = (-bh + 1j*2*math.pi*(fNh - freqs[j]))
+            num1 = prefac * (np.exp(T * prefac1) - 1) / prefac1
+            prefac2 = (-bh - 1j*2*math.pi*(fNh + freqs[j]))
+            num2 = prefac.conjugate() * (np.exp(T * prefac2) - 1) / prefac2
+            output[i, j] = num1 + num2
 
 def small_angle_approx_fd(
-        f: Union[float, np.ndarray], 
+        f: Union[float, np.ndarray],
         A: Union[float, np.ndarray], 
         b: Union[float, np.ndarray], 
         fN: Union[float, np.ndarray], 
-        phi0: Union[float, np.ndarray], 
+        phi0: Union[float, np.ndarray],
+        T: float,
         dtype: np.dtype=np.complex128
     ) -> np.ndarray:
     """
     Small-angle approximation for theta(t), including damping via a linear friction term.
     Returns in the frequency domain.
-
-    NB: One should be mindful of spectral leakage effects when performing analysis of time domain data in the frequency domain.
 
     Args:
         f: Frequency at which to evaluate the waveform.
@@ -137,5 +152,5 @@ def small_angle_approx_fd(
 
     nwave, nf = A.size, f.size
     output = np.empty((nwave, nf), dtype=dtype)
-    _sa_fd_kernel(output, nwave, nf, f, A, b, fN, phi0)
+    _sa_fd_kernel(output, nwave, nf, T, f, A, b, fN, phi0)
     return output

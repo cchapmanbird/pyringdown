@@ -224,6 +224,8 @@ class FrequencyDomainModel(Model):
         self.t_eval = np.arange(self.nt)/self.fs
         self.freqs = np.fft.rfftfreq(self.nt, self.dt)
 
+        self.duration = self.t_eval[-1].item()
+
         if window is None:
             self.window = np.ones(self.nt)
         else:
@@ -258,10 +260,8 @@ class FrequencyDomainModel(Model):
         # self.convolution_kernel = np.concatenate((np.flip(window_fft[:self.nf]), window_fft[1:self.nf]))  # the kernel for template-convolving.
         # self.convolution_kernel = np.concatenate((np.flip(window_fft[:self.nf]), window_fft[1:self.nf]))  # the kernel for template-convolving.
 
-
-
     def get_all_parameter_names(self):
-        return ["fN", "b", "A", "phi0", "offset", "sigma"]
+        return ["fN", "b", "A", "phi0", "sigma"]
 
     def log_prior(self, x):
         # TODO user defined priors from dict
@@ -274,13 +274,7 @@ class FrequencyDomainModel(Model):
         return small_angle_approx_fd(self.freqs, *args)
     
     def log_likelihood(self, x):
-        # wave = small_angle_approx_fd(self.freqs, x['A'], x['b'], x['fN'], x['phi0'])
-        wave = small_angle_approx_td(self.t_eval, x['A'], x['b'], x['fN'], x['phi0'], np.zeros_like(x['phi0']))
-        wave *= self.window[None,:]
-        wave = np.fft.rfft(wave, axis=-1)[:,self.fmin_ind:self.fmax_ind] / self.fs
-        # breakpoint()
-        # convolve1d(wave, weights=self.convolution_kernel, output=wave)
-        # breakpoint()
+        wave = small_angle_approx_fd(self.freqs, x['A'], x['b'], x['fN'], x['phi0'], self.duration)
         sigma2 = np.repeat(x['sigma'][:,None]**2, self.nf, axis=1)
 
         nlike = len(x['A'])
