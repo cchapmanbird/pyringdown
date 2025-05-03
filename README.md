@@ -1,4 +1,7 @@
 # pyringdown
+
+[![DOI](https://zenodo.org/badge/849578341.svg)](https://doi.org/10.5281/zenodo.15332597)
+
 A pendulum ringdown analysis toolkit.
 
 Fit either small-angle approximation or numerical models of pendulum motion to ringdown data.
