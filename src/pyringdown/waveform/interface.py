@@ -93,8 +93,11 @@ class FDWaveform(eqx.Module):
             self.T = T if T is not None else 1 / self.df
 
         else:
+            if (f_max is None) and (dt is None):
+                raise ValueError("Must provide either f_max or dt if f is not provided.")
+
             self.df = df
-            self.dt = dt if dt is not None else 1 / (2 * self.f_max)
+            self.dt = dt if dt is not None else 1 / (2 * f_max)
             self.T = T if T is not None else 1 / self.df
 
             f_all = jnp.fft.rfftfreq(int(self.T / self.dt), self.dt)
@@ -118,8 +121,8 @@ class FDWaveform(eqx.Module):
         return self.waveform_function.parameters if hasattr(self.waveform_function, 'parameters') else []
 
     def get_fd_waveform(self, parameters):
-        return self.waveform_function(self.f, parameters, self.T)# * self.dt
+        return self.waveform_function(self.f, parameters, self.T)
     
     def get_td_waveform(self, parameters):
         fd_waveform = self.get_fd_waveform(parameters)
-        return jnp.fft.irfft(fd_waveform)
+        return jnp.fft.irfft(fd_waveform) / self.dt
