@@ -24,7 +24,7 @@ class TDWaveform(eqx.Module):
         """
         self.waveform_function = waveform_function
 
-        self.Nt = T / dt
+        self.Nt = int(T / dt)
         self.dt = dt
         self.T = T
 
@@ -56,6 +56,7 @@ class FDWaveform(eqx.Module):
     f_min: float
     f_max: float
     f: jnp.ndarray
+    Nf_full: int
 
     def __init__(
             self, 
@@ -79,21 +80,37 @@ class FDWaveform(eqx.Module):
         self.waveform_function = waveform_function
 
         if f is not None:
+            assert jnp.all(jnp.diff(f) > 0), "Frequencies must be in ascending order."
+            assert jnp.all(jnp.diff(f) == jnp.diff(f)[0]), "Frequencies must be evenly spaced."
+
             self.f = f
             self.f_min = f[0]
             self.f_max = f[-1]
             self.df = f[1] - f[0]
             self.Nf = f.size
 
-        else:
-            self.f_min = f_min
-            self.f_max = f_max
-            self.df = df
-            self.Nf = int(jnp.round((f_max - f_min) / df)) + 1  # +1 to include f_max
-            self.f = jnp.linspace(f_min, f_max, self.Nf)
+            self.dt = dt if dt is not None else 1 / (2 * self.f_max)
+            self.T = T if T is not None else 1 / self.df
 
-        self.dt = dt if dt is not None else 1 / (2 * self.f_max)
-        self.T = T if T is not None else 1 / self.df
+        else:
+            self.df = df
+            self.dt = dt if dt is not None else 1 / (2 * self.f_max)
+            self.T = T if T is not None else 1 / self.df
+
+            f_all = jnp.fft.rfftfreq(int(self.T / self.dt), self.dt)
+            if f_min is None:
+                self.f_min = f_all[0]
+            else:        
+                self.f_min = f_all[jnp.argmin(jnp.abs(f_all - f_min))]
+            if f_max is None:
+                self.f_max = f_all[-1]
+            else:
+                self.f_max = f_all[jnp.argmin(jnp.abs(f_all - f_max))]
+
+            self.Nf = int(jnp.round((self.f_max - self.f_min) / self.df)) + 1  # +1 to include f_max
+            self.f = jnp.linspace(self.f_min, self.f_max, self.Nf)
+
+        self.Nf_full = jnp.fft.rfftfreq(int(self.T / self.dt), self.dt).size
 
     @property
     def parameters(self):

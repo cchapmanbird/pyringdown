@@ -91,17 +91,18 @@ class FDLikelihood(Likelihood):
     """
 
     waveform: Union[TDWaveform, FDWaveform]
-    data: Optional[jnp.ndarray]
+    td_data: Optional[jnp.ndarray]
     fd_data: Optional[jnp.ndarray]
     phase_maximise: bool
     amplitude_maximise: bool
     estimate_noise: bool
     
-    def __init__(self, waveform_model: TDWaveform, data: Optional[jnp.ndarray] = None, phase_maximise:bool=True, amplitude_maximise:bool=True, estimate_noise:bool=False, fixed_parameters: Optional[dict] = None):
+    def __init__(self, waveform_model: TDWaveform, td_data: Optional[jnp.ndarray] = None, fd_data: Optional[jnp.ndarray] = None, phase_maximise:bool=False, amplitude_maximise:bool=False, estimate_noise:bool=False, fixed_parameters: Optional[dict] = None):
         """
         Args:
             waveform: An instance of a TDWaveform class.
-            data: Optional data to compare against the waveform. If provided, must match the length of the waveform.
+            td_data: Optional time-domain data to compare against the waveform. If provided, must match the length of the waveform.
+            fd_data: Optional frequency-domain data to compare against the waveform. If provided, must match the length of the waveform.
             phase_maximise: If True, maximise likelihood over a phase offset.
             amplitude_maximise: If True, maximise likelihood over an overall amplitude scaling.
             estimate_noise: If True, include the noise PSD as a parameter to be estimated. Cannot be used with semicoherent likelihood.
@@ -110,10 +111,7 @@ class FDLikelihood(Likelihood):
         super().__init__(fixed_parameters=fixed_parameters)
         self.waveform = waveform_model
 
-        self.data = None
-        self.fd_data = None
-        if data is not None:
-            self.set_data(data)
+        self.set_data(td_data=td_data, fd_data=fd_data)
 
         self.phase_maximise = phase_maximise
         self.amplitude_maximise = amplitude_maximise
@@ -123,10 +121,23 @@ class FDLikelihood(Likelihood):
     
         self.estimate_noise = estimate_noise
 
-    def set_data(self, data):
-        assert data.size == self.waveform.Nf, "Data and waveform length must match."
-        self.fd_data = data * self.waveform.dt
+    def set_data(self, td_data=None, fd_data=None):
+        if td_data is not None:
+            self.fd_data = self.td_data_to_truncated_fd_data(td_data)
+            self.td_data = td_data
+        elif fd_data is not None:
+            assert fd_data.size == self.waveform.Nf, "Data and waveform length must match."
+            self.fd_data = fd_data
+            self.td_data = None
+        else:
+            raise ValueError("Must provide either time-domain or frequency-domain data.")
 
+    def td_data_to_truncated_fd_data(self, data):
+        fd_data = jnp.fft.rfft(data) * self.waveform.dt
+        f_min_ind = self.waveform.f_min / (self.waveform.df)
+        f_max_ind = self.waveform.f_max / (self.waveform.df)
+        return fd_data[int(f_min_ind):int(f_max_ind)+1]
+        
     @property
     def parameters(self):
         return self.waveform.parameters + ['noise_psd',]
@@ -160,8 +171,6 @@ class FDLikelihood(Likelihood):
             likelihood = d_h - 0.5 * h_h
             if self.estimate_noise:
                 d_d = self._inner(self.fd_data, self.fd_data, parameters['noise_psd'])
-                likelihood += -0.5 * (d_d + jnp.log(2 * jnp.pi * parameters['noise_psd'] * self.waveform.Nf))
+                likelihood = likelihood -0.5 * (d_d + jnp.log(8 * jnp.pi * parameters['noise_psd']) * self.fd_data.size)
 
-        # likelihood = -0.5 * (4 / self.waveform.T * jnp.sum(((residual.conj() * residual).real / parameters['noise_psd'])) + jnp.log(2 * jnp.pi * parameters['noise_psd'] * self.waveform.Nf))
-        
         return likelihood

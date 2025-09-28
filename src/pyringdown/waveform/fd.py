@@ -3,30 +3,32 @@ import jax.numpy as jnp
 
 # @jit
 # def small_angle(f: jnp.ndarray, parameters: dict, duration: float) -> jnp.ndarray:
-#     beta = parameters['gamma']
 #     omega = 2 * jnp.pi * f
-#     omega_star = jnp.sqrt((2 * jnp.pi * parameters['f_N'])**2 - beta**2)
+#     omega_N = 2 * jnp.pi * parameters['f_N']
+#     g_omega = parameters['gamma'] + 1j * omega
+
+#     temp =  parameters['A'] / 2 * jnp.exp(1j * parameters['phi0'] - g_omega * duration) * \
+#         (g_omega * (jnp.exp(g_omega * duration) - jnp.cos(omega_N * duration)) + omega_N * jnp.sin(omega_N * duration)) \
+#         / (g_omega ** 2 + omega_N ** 2)
     
-#     prefac = parameters['A'] / 2 * jnp.exp(1j * parameters['phi0'])
+#     return temp + temp.conj()
 
-#     prefac1 = (-beta + 1j * (omega_star - omega))
-#     num1 = prefac * (jnp.exp(duration * prefac1) - 1) / prefac1
-
-#     prefac2 = (-beta - 1j * (omega_star + omega))
-#     num2 = prefac.conjugate() * (jnp.exp(duration * prefac2) - 1) / prefac2
-
-#     return num1 + num2
+@jit 
+def _fd_sa_kern(om, omN, g, T, phi0):
+    return (1 - jnp.exp(-(g - 1j * (om - omN)) * T)) / (g + 1j*(om - omN)) * jnp.exp(1j * phi0)
 
 @jit
 def small_angle(f: jnp.ndarray, parameters: dict, duration: float) -> jnp.ndarray:
     omega = 2 * jnp.pi * f
     omega_N = 2 * jnp.pi * parameters['f_N']
-    g_omega = parameters['gamma'] + 1j * omega
+    g = parameters['gamma']
+    phi0 = parameters['phi0']
 
-    return parameters['A'] * jnp.exp(1j * parameters['phi0'] - g_omega * duration) * \
-        (g_omega * (jnp.exp(g_omega * duration) - jnp.cos(omega_N * duration)) + omega_N * jnp.sin(omega_N * duration)) \
-        / (g_omega ** 2 + omega_N ** 2)
-
+    return parameters['A'] / 2  * (
+        _fd_sa_kern(omega, omega_N, g, duration, phi0) + 
+        _fd_sa_kern(-omega, omega_N, g, duration, phi0).conj()
+    )
+    
 small_angle.parameters = [
     'A',  # Amplitude
     'gamma',  # Damping factor
@@ -38,20 +40,23 @@ small_angle.parameters = [
 def double_small_angle(f: jnp.ndarray, parameters: dict, duration: float) -> jnp.ndarray:
     omega = 2 * jnp.pi * f
     omega_N = 2 * jnp.pi * parameters['f_N_1']
-    g_omega = parameters['gamma_1'] + 1j * omega
+    
+    g = parameters['gamma_1']
+    phi0 = parameters['phi0_1']
 
-    out = parameters['A_1'] * jnp.exp(1j * parameters['phi0_1'] - g_omega * duration) * \
-        (g_omega * (jnp.exp(g_omega * duration) - jnp.cos(omega_N * duration)) + omega_N * jnp.sin(omega_N * duration)) \
-        / (g_omega ** 2 + omega_N ** 2)
+    temp = parameters['A_1'] / 2  * (
+        _fd_sa_kern(omega, omega_N, g, duration, phi0) + 
+        _fd_sa_kern(-omega, omega_N, g, duration, phi0).conj()
+    )
 
     omega_N = 2 * jnp.pi * parameters['f_N_2']
-    g_omega = parameters['gamma_2'] + 1j * omega
+    g = parameters['gamma_2']
+    phi0 = parameters['phi0_2']
 
-    out += parameters['A_2'] * jnp.exp(1j * parameters['phi0_2'] - g_omega * duration) * \
-        (g_omega * (jnp.exp(g_omega * duration) - jnp.cos(omega_N * duration)) + omega_N * jnp.sin(omega_N * duration)) \
-        / (g_omega ** 2 + omega_N ** 2)
-
-    return out
+    return temp + parameters['A_2'] / 2  * (
+            _fd_sa_kern(omega, omega_N, g, duration, phi0) + 
+            _fd_sa_kern(-omega, omega_N, g, duration, phi0).conj()
+        )
 
 double_small_angle.parameters = [
     'A_1',  # Amplitude
