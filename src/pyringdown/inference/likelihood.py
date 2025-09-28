@@ -160,7 +160,7 @@ class FDLikelihood(Likelihood):
             likelihood = d_h - 0.5 * h_h
             if self.estimate_noise:
                 d_d = self._inner(self.fd_data, self.fd_data, parameters['noise_psd'])
-                likelihood += -0.5 * (d_d - d_h ** 2 / h_h + jnp.log(2 * jnp.pi * parameters['noise_psd'] * self.waveform.Nf))
+                likelihood += -0.5 * (d_d + jnp.log(2 * jnp.pi * parameters['noise_psd'] * self.waveform.Nf))
 
         # likelihood = -0.5 * (4 / self.waveform.T * jnp.sum(((residual.conj() * residual).real / parameters['noise_psd'])) + jnp.log(2 * jnp.pi * parameters['noise_psd'] * self.waveform.Nf))
         

@@ -23,7 +23,7 @@ def small_angle(f: jnp.ndarray, parameters: dict, duration: float) -> jnp.ndarra
     omega_N = 2 * jnp.pi * parameters['f_N']
     g_omega = parameters['gamma'] + 1j * omega
 
-    return parameters['A'] / 2 * jnp.exp(1j * parameters['phi0'] - g_omega * duration) * \
+    return parameters['A'] * jnp.exp(1j * parameters['phi0'] - g_omega * duration) * \
         (g_omega * (jnp.exp(g_omega * duration) - jnp.cos(omega_N * duration)) + omega_N * jnp.sin(omega_N * duration)) \
         / (g_omega ** 2 + omega_N ** 2)
 
@@ -40,14 +40,14 @@ def double_small_angle(f: jnp.ndarray, parameters: dict, duration: float) -> jnp
     omega_N = 2 * jnp.pi * parameters['f_N_1']
     g_omega = parameters['gamma_1'] + 1j * omega
 
-    out = parameters['A_1'] / 2 * jnp.exp(1j * parameters['phi0_1'] - g_omega * duration) * \
+    out = parameters['A_1'] * jnp.exp(1j * parameters['phi0_1'] - g_omega * duration) * \
         (g_omega * (jnp.exp(g_omega * duration) - jnp.cos(omega_N * duration)) + omega_N * jnp.sin(omega_N * duration)) \
         / (g_omega ** 2 + omega_N ** 2)
 
     omega_N = 2 * jnp.pi * parameters['f_N_2']
     g_omega = parameters['gamma_2'] + 1j * omega
 
-    out += parameters['A_2'] / 2 * jnp.exp(1j * parameters['phi0_2'] - g_omega * duration) * \
+    out += parameters['A_2'] * jnp.exp(1j * parameters['phi0_2'] - g_omega * duration) * \
         (g_omega * (jnp.exp(g_omega * duration) - jnp.cos(omega_N * duration)) + omega_N * jnp.sin(omega_N * duration)) \
         / (g_omega ** 2 + omega_N ** 2)
 
