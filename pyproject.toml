@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyringdown"
+requires-python = ">=3.10"
+authors = [
+  {name = "Christian Chapman-Bird", email = "c.chapmanbird@gmail.com"},]
+description = "pyringdown: A ringdown analysis toolkit"
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["ringdown","analysis"]
+classifiers = [
+  "Programming Language :: Python :: 3"
+]
+dynamic = ["version"]
+dependencies = [
+    "numpy",
+    "nessai",
+    "matplotlib",
+    "jax"
+]
+
+[tool.setuptools_scm]
