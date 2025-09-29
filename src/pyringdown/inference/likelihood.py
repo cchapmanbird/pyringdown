@@ -135,8 +135,7 @@ class FDLikelihood(Likelihood):
     def td_data_to_truncated_fd_data(self, data):
         fd_data = jnp.fft.rfft(data) * self.waveform.dt
         f_min_ind = self.waveform.f_min / (self.waveform.df)
-        f_max_ind = self.waveform.f_max / (self.waveform.df)
-        return fd_data[int(f_min_ind):int(f_max_ind)+1]
+        return fd_data[int(f_min_ind):int(f_min_ind)+self.waveform.Nf]
         
     @property
     def parameters(self):
