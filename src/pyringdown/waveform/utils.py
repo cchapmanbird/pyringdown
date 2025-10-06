@@ -1,4 +1,5 @@
 from typing import Optional
+import jax.numpy as jnp
 
 def get_sampling_parameters_from_partial_inputs(Nt: Optional[int]=None, dt: Optional[float]=None, T: Optional[float]=None):
     T_temp = T
@@ -29,3 +30,8 @@ def get_sampling_parameters_from_partial_inputs(Nt: Optional[int]=None, dt: Opti
         )
 
     return Nt_temp, dt_temp, T_temp
+
+def td_data_to_truncated_fd_data(data, f_min, df, Nf, dt):
+    fd_data = jnp.fft.rfft(data) * dt
+    f_min_ind = int(f_min / df)
+    return fd_data[f_min_ind:f_min_ind+Nf]

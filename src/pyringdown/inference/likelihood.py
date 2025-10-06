@@ -2,6 +2,7 @@ import equinox as eqx
 from ..waveform.interface import TDWaveform, FDWaveform
 import jax.numpy as jnp
 from typing import Optional, Union
+from ..waveform.utils import td_data_to_truncated_fd_data
 
 class Likelihood(eqx.Module):
     """
@@ -123,7 +124,13 @@ class FDLikelihood(Likelihood):
 
     def set_data(self, td_data=None, fd_data=None):
         if td_data is not None:
-            self.fd_data = self.td_data_to_truncated_fd_data(td_data)
+            self.fd_data = td_data_to_truncated_fd_data(
+                td_data, 
+                self.waveform.f_min, 
+                self.waveform.df, 
+                self.waveform.Nf, 
+                self.waveform.dt
+            )
             self.td_data = td_data
         elif fd_data is not None:
             assert fd_data.size == self.waveform.Nf, "Data and waveform length must match."
@@ -132,11 +139,6 @@ class FDLikelihood(Likelihood):
         else:
             raise ValueError("Must provide either time-domain or frequency-domain data.")
 
-    def td_data_to_truncated_fd_data(self, data):
-        fd_data = jnp.fft.rfft(data) * self.waveform.dt
-        f_min_ind = self.waveform.f_min / (self.waveform.df)
-        return fd_data[int(f_min_ind):int(f_min_ind)+self.waveform.Nf]
-        
     @property
     def parameters(self):
         return self.waveform.parameters + ['noise_psd',]
